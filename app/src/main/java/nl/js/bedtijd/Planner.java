@@ -22,9 +22,13 @@ final class Planner {
     static final String ACTION_START = "nl.js.bedtijd.START";
     static final String ACTION_WAKE = "nl.js.bedtijd.WAKE";
     static final String ACTION_SNOOZE_RING = "nl.js.bedtijd.SNOOZE_RING";
+    static final String ACTION_BEGIN_NOW = "nl.js.bedtijd.BEGIN_NOW";
+    static final String ACTION_REMIND = "nl.js.bedtijd.REMIND";
+    static final String ACTION_SKIP_TONIGHT = "nl.js.bedtijd.SKIP_TONIGHT";
+    static final String CH_ASK = "vraag";
     static final String CH_BED = "bedtijd";
     static final String CH_ALARM = "wekker";
-    static final int NOTIF_BED = 1, NOTIF_ALARM = 2, NOTIF_HELP = 3;
+    static final int NOTIF_BED = 1, NOTIF_ALARM = 2, NOTIF_HELP = 3, NOTIF_ASK = 4;
 
     /** One night: bedtime starts at {@code start}, the alarm goes at {@code wake}. */
     static final class Window {
@@ -108,9 +112,13 @@ final class Planner {
         for (Window w : ws) {
             boolean inside = w.start <= now && now < w.wake;
             if (inside && s.activeUntil <= now && s.skipUntil < w.wake) {
-                begin(c, w.wake);
+                if (s.askFirst) {
+                    if (s.promptedFor != w.wake) ask(c, w);   // a notification with a Start button
+                } else {
+                    begin(c, w.wake);
+                }
                 s = Settings.load(c);
-                nextWake = w.wake;
+                if (nextWake == 0) nextWake = w.wake;
                 continue;
             }
             if (inside) { if (nextWake == 0) nextWake = w.wake; continue; }
@@ -130,8 +138,52 @@ final class Planner {
         }
     }
 
+    /** The night that is going on right now (bedtime window we are in), or null. */
+    static Window current(Settings s, long now) {
+        for (Window w : windows(s, now)) if (w.start <= now && now < w.wake) return w;
+        return null;
+    }
+
+    /** It is bedtime: ask with a notification instead of starting by itself. */
+    static void ask(Context c, Window w) {
+        Settings s = Settings.load(c);
+        s.promptedFor = w.wake;
+        s.save(c);
+        channels(c);
+        Notification n = new Notification.Builder(c, CH_ASK)
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle("Het is bedtijd")
+                .setContentText("Wekker om " + hhmm(w.wake) + ". Tik op Start om internet en oproepen uit te zetten.")
+                .setCategory(Notification.CATEGORY_REMINDER)
+                .setContentIntent(openApp(c))
+                .setAutoCancel(true)
+                .addAction(new Notification.Action.Builder(null, "Start", pi(c, ACTION_BEGIN_NOW, 5)).build())
+                .addAction(new Notification.Action.Builder(null, "Over 15 min", pi(c, ACTION_REMIND, 6)).build())
+                .addAction(new Notification.Action.Builder(null, "Vannacht niet", pi(c, ACTION_SKIP_TONIGHT, 7)).build())
+                .build();
+        try { ((NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE)).notify(NOTIF_ASK, n); } catch (Exception ignored) { }
+    }
+
+    /** "Over 15 min": ask again in a quarter of an hour. */
+    static void remindLater(Context c) {
+        Settings s = Settings.load(c);
+        s.promptedFor = 0;
+        s.save(c);
+        cancelAsk(c);
+        AlarmManager am = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
+        long at = System.currentTimeMillis() + 15 * 60000L;
+        PendingIntent p = pi(c, ACTION_START, 4);
+        if (canExact(c)) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, p);
+    }
+
+    static void cancelAsk(Context c) {
+        ((NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE)).cancel(NOTIF_ASK);
+    }
+
     /** Switch bedtime on until {@code until}: calls silent, internet blocked. */
     static void begin(Context c, long until) {
+        cancelAsk(c);
         Settings s = Settings.load(c);
         s.activeUntil = until;
         s.skipUntil = 0;
@@ -206,6 +258,9 @@ final class Planner {
         NotificationChannel bed = new NotificationChannel(CH_BED, "Bedtijd", NotificationManager.IMPORTANCE_LOW);
         bed.setDescription("Laat zien dat bedtijd aan staat");
         bed.setShowBadge(false);
+        NotificationChannel ask = new NotificationChannel(CH_ASK, "Het is bedtijd", NotificationManager.IMPORTANCE_HIGH);
+        ask.setDescription("Vraagt of bedtijd mag beginnen");
+        nm.createNotificationChannel(ask);
         NotificationChannel alarm = new NotificationChannel(CH_ALARM, "Wekker", NotificationManager.IMPORTANCE_HIGH);
         alarm.setDescription("De wekker die afgaat");
         alarm.setSound(null, null);

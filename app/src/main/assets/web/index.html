@@ -117,6 +117,7 @@ footer{color:var(--muted);font-size:13px;text-align:center}
   <section>
     <h2>Tijdens bedtijd</h2>
     <div class="opts">
+      <label class="opt"><div class="t"><b>Eerst vragen</b><span>Op je bedtijd krijg je een melding met een Start-knop. Pas als je tikt, gaat bedtijd aan.</span></div><span class="sw"><input type="checkbox" id="askFirst"><i></i></span></label>
       <label class="opt"><div class="t"><b>Internet uit</b><span>Wifi en mobiel internet gepauzeerd</span></div><span class="sw"><input type="checkbox" id="blockNet"><i></i></span></label>
       <label class="opt"><div class="t"><b>Oproepen stil</b><span>Niet storen staat aan, de wekker gaat wel af</span></div><span class="sw"><input type="checkbox" id="blockCalls"><i></i></span></label>
       <label class="opt sub" id="rowFav"><div class="t"><b>Favorieten mogen bellen</b><span>Contacten met een sterretje komen door</span></div><span class="sw"><input type="checkbox" id="allowFavorites"><i></i></span></label>
@@ -151,7 +152,7 @@ footer{color:var(--muted);font-size:13px;text-align:center}
 
   function demo() {   // preview outside the app
     return { days: [420, 420, 420, 420, 420, 510, 510].map(function (w, i) { return { on: i < 5, wake: w }; }),
-      sleepMin: 480, blockNet: true, blockCalls: true, allowFavorites: true, allowRepeat: true, alarmOn: true, snoozeMin: 9,
+      sleepMin: 480, askFirst: true, blockNet: true, blockCalls: true, allowFavorites: true, allowRepeat: true, alarmOn: true, snoozeMin: 9,
       perms: { dnd: false, vpn: false, exact: true, notif: true, fsi: false }, active: false,
       nextStart: 'vanavond 23:00', nextWake: 'morgen 07:00', soundName: 'Standaard wekkergeluid' };
   }
@@ -161,7 +162,7 @@ footer{color:var(--muted);font-size:13px;text-align:center}
   function dur(min) { return Math.floor(min / 60) + ' u ' + pad(min % 60); }
 
   function save() {
-    var o = { days: S.days, sleepMin: S.sleepMin, blockNet: S.blockNet, blockCalls: S.blockCalls,
+    var o = { days: S.days, sleepMin: S.sleepMin, askFirst: S.askFirst, blockNet: S.blockNet, blockCalls: S.blockCalls,
       allowFavorites: S.allowFavorites, allowRepeat: S.allowRepeat, alarmOn: S.alarmOn, snoozeMin: S.snoozeMin };
     if (N) { N.save(JSON.stringify(o)); load(); }
     render();
@@ -176,6 +177,12 @@ footer{color:var(--muted);font-size:13px;text-align:center}
       $('sSmall').textContent = what ? 'Nu staat ' + what + '.' : 'Welterusten.';
       $('btnNow').textContent = 'Bedtijd stoppen';
       $('btnNow').className = 'secondary';
+    } else if (S.due) {
+      st.classList.add('on');
+      $('sBig').innerHTML = 'Het is <span>bedtijd</span>';
+      $('sSmall').textContent = 'Wekker om ' + S.dueWake + '. Tik op Start als je gaat slapen.';
+      $('btnNow').textContent = 'Start bedtijd';
+      $('btnNow').className = 'primary';
     } else {
       $('sBig').innerHTML = S.nextStart ? 'Bedtijd <span>' + S.nextStart + '</span>' : 'Geen bedtijd gepland';
       $('sSmall').textContent = S.nextWake ? 'Wekker ' + S.nextWake : 'Zet bij een dag de wekker aan.';
@@ -214,7 +221,7 @@ footer{color:var(--muted);font-size:13px;text-align:center}
     renderStatus();
     renderDays();
     $('durVal').textContent = dur(S.sleepMin);
-    ['blockNet', 'blockCalls', 'allowFavorites', 'allowRepeat', 'alarmOn'].forEach(function (k) { $(k).checked = !!S[k]; });
+    ['askFirst', 'blockNet', 'blockCalls', 'allowFavorites', 'allowRepeat', 'alarmOn'].forEach(function (k) { $(k).checked = !!S[k]; });
     $('rowFav').classList.toggle('dis', !S.blockCalls);
     $('rowRep').classList.toggle('dis', !S.blockCalls);
     $('soundName').textContent = S.soundName || 'Standaard wekkergeluid';
@@ -231,7 +238,7 @@ footer{color:var(--muted);font-size:13px;text-align:center}
     }
     save();
   });
-  ['blockNet', 'blockCalls', 'allowFavorites', 'allowRepeat', 'alarmOn'].forEach(function (k) {
+  ['askFirst', 'blockNet', 'blockCalls', 'allowFavorites', 'allowRepeat', 'alarmOn'].forEach(function (k) {
     $(k).addEventListener('change', function () { S[k] = this.checked; save(); });
   });
   $('durMin').onclick = function () { S.sleepMin = Math.max(240, S.sleepMin - 15); save(); };

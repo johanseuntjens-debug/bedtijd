@@ -19,12 +19,14 @@ final class Settings {
     boolean allowFavorites = true;
     boolean allowRepeat = true;
     boolean alarmOn = true;
+    boolean askFirst = true;                               // ask before bedtime starts
     int snoozeMin = 9;
     String sound = null;                                   // null = default alarm sound
 
     // state
     long activeUntil = 0;     // bedtime running until this moment (0 = not running)
     long skipUntil = 0;       // user stopped tonight's bedtime: don't restart before this
+    long promptedFor = 0;     // wake time of the night we already asked about
     int savedFilter = -1;     // Do Not Disturb as it was before bedtime
     String savedPolicy = null;
 
@@ -54,11 +56,11 @@ final class Settings {
             days.put(new JSONObject().put("on", dayOn[i]).put("wake", wakeMin[i]));
         }
         o.put("days", days).put("sleepMin", sleepMin).put("blockNet", blockNet).put("blockCalls", blockCalls)
-                .put("allowFavorites", allowFavorites).put("allowRepeat", allowRepeat).put("alarmOn", alarmOn)
+                .put("allowFavorites", allowFavorites).put("allowRepeat", allowRepeat).put("alarmOn", alarmOn).put("askFirst", askFirst)
                 .put("snoozeMin", snoozeMin);
         if (sound != null) o.put("sound", sound);
         if (withState) {
-            o.put("activeUntil", activeUntil).put("skipUntil", skipUntil).put("savedFilter", savedFilter);
+            o.put("activeUntil", activeUntil).put("skipUntil", skipUntil).put("savedFilter", savedFilter).put("promptedFor", promptedFor);
             if (savedPolicy != null) o.put("savedPolicy", savedPolicy);
         }
         return o;
@@ -80,11 +82,13 @@ final class Settings {
         allowFavorites = o.optBoolean("allowFavorites", allowFavorites);
         allowRepeat = o.optBoolean("allowRepeat", allowRepeat);
         alarmOn = o.optBoolean("alarmOn", alarmOn);
+        askFirst = o.optBoolean("askFirst", askFirst);
         snoozeMin = Math.max(1, Math.min(30, o.optInt("snoozeMin", snoozeMin)));
         if (o.has("sound")) sound = o.optString("sound", null);
         if (withState) {
             activeUntil = o.optLong("activeUntil", 0);
             skipUntil = o.optLong("skipUntil", 0);
+            promptedFor = o.optLong("promptedFor", 0);
             savedFilter = o.optInt("savedFilter", -1);
             savedPolicy = o.has("savedPolicy") ? o.optString("savedPolicy", null) : null;
         }

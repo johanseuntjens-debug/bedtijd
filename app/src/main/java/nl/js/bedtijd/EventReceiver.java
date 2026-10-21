@@ -30,6 +30,24 @@ public class EventReceiver extends BroadcastReceiver {
             case Planner.ACTION_SNOOZE_RING:
                 AlarmService.ring(c);
                 break;
+            case Planner.ACTION_BEGIN_NOW: {
+                Settings s = Settings.load(c);
+                Planner.Window w = Planner.current(s, now);
+                Planner.begin(c, w != null ? w.wake : now + s.sleepMin * 60000L);
+                Planner.plan(c);
+                break;
+            }
+            case Planner.ACTION_REMIND:
+                Planner.remindLater(c);
+                break;
+            case Planner.ACTION_SKIP_TONIGHT: {
+                Settings s = Settings.load(c);
+                Planner.Window w = Planner.current(s, now);
+                if (w != null) { s.skipUntil = w.wake; s.save(c); }
+                Planner.cancelAsk(c);
+                Planner.plan(c);
+                break;
+            }
             case ACTION_STOP_BED:
                 Planner.stop(c, true);
                 Planner.plan(c);

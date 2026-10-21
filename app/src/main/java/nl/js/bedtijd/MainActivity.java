@@ -114,6 +114,11 @@ public class MainActivity extends Activity {
                 o.put("perms", perms);
                 boolean active = s.activeUntil > now;
                 o.put("active", active);
+                Planner.Window cur = Planner.current(s, now);
+                if (!active && cur != null && s.skipUntil < cur.wake) {
+                    o.put("due", true);
+                    o.put("dueWake", Planner.hhmm(cur.wake));
+                }
                 if (active) o.put("until", Planner.hhmm(s.activeUntil));
                 List<Planner.Window> ws = Planner.windows(s, now);
                 for (Planner.Window w : ws) {

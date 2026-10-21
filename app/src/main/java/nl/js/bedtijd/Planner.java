@@ -188,17 +188,12 @@ final class Planner {
         s.activeUntil = until;
         s.skipUntil = 0;
         NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
-        if (s.blockCalls && nm.isNotificationPolicyAccessGranted()) {
+        if ((s.blockCalls || s.blockMessages) && nm.isNotificationPolicyAccessGranted()) {
             if (s.savedFilter < 0) {
                 s.savedFilter = nm.getCurrentInterruptionFilter();
                 s.savedPolicy = policyToString(nm.getNotificationPolicy());
             }
-            int cats = 0;
-            if (Build.VERSION.SDK_INT >= 28) cats |= NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS;
-            if (s.allowFavorites) cats |= NotificationManager.Policy.PRIORITY_CATEGORY_CALLS;
-            if (s.allowRepeat) cats |= NotificationManager.Policy.PRIORITY_CATEGORY_REPEAT_CALLERS;
-            nm.setNotificationPolicy(new NotificationManager.Policy(cats,
-                    NotificationManager.Policy.PRIORITY_SENDERS_STARRED, NotificationManager.Policy.PRIORITY_SENDERS_STARRED));
+            nm.setNotificationPolicy(nightPolicy(s));
             nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY);
         }
         s.save(c);
@@ -237,16 +232,53 @@ final class Planner {
         nm.cancel(NOTIF_BED);
     }
 
+    /** Do Not Disturb for the night: alarms always ring; calls and messages as chosen. */
+    private static NotificationManager.Policy nightPolicy(Settings s) {
+        int cats = 0, callers = NotificationManager.Policy.PRIORITY_SENDERS_STARRED;
+        int texters = NotificationManager.Policy.PRIORITY_SENDERS_STARRED;
+        if (Build.VERSION.SDK_INT >= 28) cats |= NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS;
+        if (!s.blockCalls) {
+            cats |= NotificationManager.Policy.PRIORITY_CATEGORY_CALLS;
+            callers = NotificationManager.Policy.PRIORITY_SENDERS_ANY;
+        } else {
+            if (s.allowFavorites) cats |= NotificationManager.Policy.PRIORITY_CATEGORY_CALLS;
+            if (s.allowRepeat) cats |= NotificationManager.Policy.PRIORITY_CATEGORY_REPEAT_CALLERS;
+        }
+        if (!s.blockMessages) {
+            cats |= NotificationManager.Policy.PRIORITY_CATEGORY_MESSAGES;
+            texters = NotificationManager.Policy.PRIORITY_SENDERS_ANY;
+            if (Build.VERSION.SDK_INT >= 30) cats |= NotificationManager.Policy.PRIORITY_CATEGORY_CONVERSATIONS;
+        }
+        if (Build.VERSION.SDK_INT < 28) return new NotificationManager.Policy(cats, callers, texters);
+        // messages: no sound, no pop-up, not in the status bar or the list until bedtime is over
+        int hide = s.blockMessages ? (NotificationManager.Policy.SUPPRESSED_EFFECT_PEEK
+                | NotificationManager.Policy.SUPPRESSED_EFFECT_STATUS_BAR
+                | NotificationManager.Policy.SUPPRESSED_EFFECT_BADGE
+                | NotificationManager.Policy.SUPPRESSED_EFFECT_AMBIENT
+                | NotificationManager.Policy.SUPPRESSED_EFFECT_LIGHTS
+                | NotificationManager.Policy.SUPPRESSED_EFFECT_NOTIFICATION_LIST) : 0;
+        if (Build.VERSION.SDK_INT >= 30) {
+            return new NotificationManager.Policy(cats, callers, texters, hide,
+                    s.blockMessages ? NotificationManager.Policy.CONVERSATION_SENDERS_NONE
+                            : NotificationManager.Policy.CONVERSATION_SENDERS_ANYONE);
+        }
+        return new NotificationManager.Policy(cats, callers, texters, hide);
+    }
+
     private static String policyToString(NotificationManager.Policy p) {
         if (p == null) return null;
         int fx = Build.VERSION.SDK_INT >= 28 ? p.suppressedVisualEffects : 0;
-        return p.priorityCategories + "," + p.priorityCallSenders + "," + p.priorityMessageSenders + "," + fx;
+        int conv = Build.VERSION.SDK_INT >= 30 ? p.priorityConversationSenders : 0;
+        return p.priorityCategories + "," + p.priorityCallSenders + "," + p.priorityMessageSenders + "," + fx + "," + conv;
     }
 
     private static NotificationManager.Policy policyFromString(String v) {
         if (v == null) return null;
         String[] a = v.split(",");
         int cats = Integer.parseInt(a[0]), calls = Integer.parseInt(a[1]), msgs = Integer.parseInt(a[2]);
+        if (Build.VERSION.SDK_INT >= 30 && a.length > 4) {
+            return new NotificationManager.Policy(cats, calls, msgs, Integer.parseInt(a[3]), Integer.parseInt(a[4]));
+        }
         if (Build.VERSION.SDK_INT >= 28 && a.length > 3) {
             return new NotificationManager.Policy(cats, calls, msgs, Integer.parseInt(a[3]));
         }
@@ -271,8 +303,11 @@ final class Planner {
 
     static Notification bedNotification(Context c, Settings s) {
         channels(c);
-        String what = s.blockNet && s.blockCalls ? "Internet en oproepen staan uit" :
-                s.blockNet ? "Internet staat uit" : s.blockCalls ? "Oproepen staan stil" : "Welterusten";
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        if (s.blockNet) parts.add("internet uit");
+        if (s.blockCalls) parts.add("oproepen stil");
+        if (s.blockMessages) parts.add("berichten stil");
+        String what = parts.isEmpty() ? "Welterusten" : Character.toUpperCase(parts.get(0).charAt(0)) + String.join(", ", parts).substring(1);
         Intent stop = new Intent(c, EventReceiver.class).setAction(EventReceiver.ACTION_STOP_BED);
         PendingIntent stopPi = PendingIntent.getBroadcast(c, 11, stop, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(c, CH_BED)

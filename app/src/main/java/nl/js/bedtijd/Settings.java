@@ -16,6 +16,7 @@ final class Settings {
     int sleepMin = 480;                                    // how long to sleep
     boolean blockNet = true;
     boolean blockCalls = true;
+    boolean blockMessages = true;                          // sms, e-mail, WhatsApp: silent and out of sight
     boolean allowFavorites = true;
     boolean allowRepeat = true;
     boolean alarmOn = true;
@@ -55,7 +56,7 @@ final class Settings {
         for (int i = 0; i < 7; i++) {
             days.put(new JSONObject().put("on", dayOn[i]).put("wake", wakeMin[i]));
         }
-        o.put("days", days).put("sleepMin", sleepMin).put("blockNet", blockNet).put("blockCalls", blockCalls)
+        o.put("days", days).put("sleepMin", sleepMin).put("blockNet", blockNet).put("blockCalls", blockCalls).put("blockMessages", blockMessages)
                 .put("allowFavorites", allowFavorites).put("allowRepeat", allowRepeat).put("alarmOn", alarmOn).put("askFirst", askFirst)
                 .put("snoozeMin", snoozeMin);
         if (sound != null) o.put("sound", sound);
@@ -79,6 +80,7 @@ final class Settings {
         sleepMin = Math.max(60, Math.min(14 * 60, o.optInt("sleepMin", sleepMin)));
         blockNet = o.optBoolean("blockNet", blockNet);
         blockCalls = o.optBoolean("blockCalls", blockCalls);
+        blockMessages = o.optBoolean("blockMessages", blockMessages);
         allowFavorites = o.optBoolean("allowFavorites", allowFavorites);
         allowRepeat = o.optBoolean("allowRepeat", allowRepeat);
         alarmOn = o.optBoolean("alarmOn", alarmOn);

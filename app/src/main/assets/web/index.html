@@ -31,6 +31,16 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--moon);outline-o
 .status .big{font-size:28px;font-weight:800;line-height:1.15}
 .status .big span{color:var(--moon)}
 .status .small{color:var(--muted)}
+.master{display:flex;align-items:center;justify-content:space-between;gap:14px;background:rgba(0,0,0,.18);border-radius:18px;padding:14px 16px}
+.master b{display:block;font-size:22px}
+.master small{display:block;color:var(--muted);font-size:13px}
+.sw.big{width:72px;height:42px}
+.sw.big i::after{width:34px;height:34px}
+.sw.big input:checked + i::after{transform:translateX(30px)}
+.checks{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.checks li{display:flex;gap:8px;align-items:baseline;font-size:15px}
+.checks .y{color:var(--good);font-weight:700}
+.checks .n{color:#ffc9a8;font-weight:700}
 .status .warn{display:block;margin-top:6px;color:#ffc9a8;font-weight:600}
 .moonrow{display:flex;gap:14px;align-items:center}
 .moonrow svg{width:46px;height:46px;flex:none}
@@ -99,6 +109,8 @@ footer{color:var(--muted);font-size:13px;text-align:center}
       <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 6a18 18 0 1 0 12 30A16 16 0 0 1 30 6z" fill="#f6d58e"/><circle cx="38" cy="10" r="1.6" fill="#f6d58e"/><circle cx="43" cy="18" r="1.1" fill="#f6d58e"/></svg>
       <div><div class="big" id="sBig">–</div><div class="small" id="sSmall"></div></div>
     </div>
+    <label class="master"><span><b>Alles uit</b><small>Internet, oproepen en berichten</small></span><span class="sw big"><input type="checkbox" id="master" aria-label="Alles uit"><i></i></span></label>
+    <ul class="checks" id="checks"></ul>
     <button id="btnNow" class="primary">Bedtijd nu starten</button>
   </div>
 
@@ -170,28 +182,35 @@ footer{color:var(--muted);font-size:13px;text-align:center}
     render();
   }
 
+  function renderChecks() {
+    var rows = [];
+    if (S.active) {
+      if (S.blockNet) rows.push(S.netOk ? ['y', 'Internet is uit (sleuteltje bovenin)'] : ['n', 'Internet staat nog aan' + (S.perms && !S.perms.vpn ? ': tik op Alles uit en sta de VPN toe' : (S.netError ? ' (' + S.netError + ')' : ': zet de schakelaar uit en weer aan'))]);
+      if (S.blockCalls || S.blockMessages) rows.push(S.dndOk ? ['y', 'Oproepen en berichten zijn stil'] : ['n', 'Oproepen en berichten nog aan: sta Niet storen toe']);
+    }
+    $('checks').innerHTML = rows.map(function (r) { return '<li><span class="' + r[0] + '">' + (r[0] === 'y' ? '✓' : '✗') + '</span><span>' + r[1] + '</span></li>'; }).join('');
+    $('master').checked = !!S.active;
+  }
+
   function renderStatus() {
+    renderChecks();
     var st = $('status');
     st.classList.toggle('on', !!S.active);
     if (S.active) {
       $('sBig').innerHTML = 'Bedtijd tot <span>' + S.until + '</span>';
-      var off = [], still = [];
-      if (S.blockNet) (S.netOk ? off : still).push('internet');
-      if (S.blockCalls) (S.dndOk ? off : still).push('oproepen');
-      if (S.blockMessages) (S.dndOk ? off : still).push('berichten');
-      $('sSmall').innerHTML = (off.length ? 'Uit: ' + off.join(', ') + '.' : 'Welterusten.') +
-        (still.length ? '<span class="warn">Nog aan: ' + still.join(', ') + '. Geef hieronder bij Toestemmingen toegang, dan gaat het meteen uit.</span>' : '');
-      $('btnNow').textContent = 'Bedtijd stoppen';
-      $('btnNow').className = 'secondary';
+      $('sSmall').textContent = 'Je wekker gaat om ' + S.until + '.';
+      $('btnNow').hidden = true;
     } else if (S.due) {
       st.classList.add('on');
       $('sBig').innerHTML = 'Het is <span>bedtijd</span>';
       $('sSmall').textContent = 'Wekker om ' + S.dueWake + '. Tik op Start als je gaat slapen.';
+      $('btnNow').hidden = false;
       $('btnNow').textContent = 'Start bedtijd';
       $('btnNow').className = 'primary';
     } else {
       $('sBig').innerHTML = S.nextStart ? 'Bedtijd <span>' + S.nextStart + '</span>' : 'Geen bedtijd gepland';
       $('sSmall').textContent = S.nextWake ? 'Wekker ' + S.nextWake : 'Zet bij een dag de wekker aan.';
+      $('btnNow').hidden = false;
       $('btnNow').textContent = 'Bedtijd nu starten';
       $('btnNow').className = 'primary';
     }
@@ -253,6 +272,11 @@ footer{color:var(--muted);font-size:13px;text-align:center}
   $('snPlus').onclick = function () { S.snoozeMin = Math.min(30, S.snoozeMin + 1); save(); };
   $('btnSound').onclick = function () { if (N) N.pickSound(); };
   $('btnTest').onclick = function () { if (N) N.testAlarm(); };
+  $('master').addEventListener('change', function () {
+    if (!N) { S.active = this.checked; S.until = '07:00'; render(); return; }
+    if (this.checked) N.allOff(); else N.stopNow();
+    load(); render();
+  });
   $('btnNow').onclick = function () {
     if (!N) { S.active = !S.active; S.until = '07:00'; render(); return; }
     if (S.active) N.stopNow(); else N.startNow();

@@ -116,7 +116,8 @@ public class MainActivity extends Activity {
                         .put("fsi", Build.VERSION.SDK_INT < 34 || nm.canUseFullScreenIntent());
                 o.put("perms", perms);
                 // what is really switched off right now (needs the permissions)
-                o.put("netOk", perms.getBoolean("vpn"));
+                o.put("netOk", perms.getBoolean("vpn") && BlockVpnService.running);
+                if (BlockVpnService.lastError != null) o.put("netError", BlockVpnService.lastError);
                 o.put("dndOk", perms.getBoolean("dnd"));
                 boolean active = s.activeUntil > now;
                 o.put("active", active);
@@ -157,6 +158,19 @@ public class MainActivity extends Activity {
                 }
                 Planner.plan(MainActivity.this);
             } catch (Exception ignored) { }
+        }
+
+        /** The big switch: everything off now. Asks first for any permission that is still missing. */
+        @JavascriptInterface
+        public String allOff() {
+            nl.js.bedtijd.Settings s = nl.js.bedtijd.Settings.load(MainActivity.this);
+            s.blockNet = true; s.blockCalls = true; s.blockMessages = true;
+            s.save(MainActivity.this);
+            startNow();
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (VpnService.prepare(MainActivity.this) != null) { grant("vpn"); return "vpn"; }
+            if (!nm.isNotificationPolicyAccessGranted()) { grant("dnd"); return "dnd"; }
+            return "ok";
         }
 
         @JavascriptInterface

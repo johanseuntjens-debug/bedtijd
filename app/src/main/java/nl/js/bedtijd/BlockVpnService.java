@@ -18,6 +18,10 @@ public class BlockVpnService extends VpnService {
     static final String ACTION_ON = "nl.js.bedtijd.VPN_ON";
     static final String ACTION_OFF = "nl.js.bedtijd.VPN_OFF";
 
+    /** True while the internet is really paused (the tunnel is up). */
+    static volatile boolean running = false;
+    static volatile String lastError = null;
+
     private ParcelFileDescriptor tun;
     private Thread drain;
 
@@ -26,7 +30,7 @@ public class BlockVpnService extends VpnService {
         String a = intent != null ? intent.getAction() : null;
         if (ACTION_OFF.equals(a)) {
             close();
-            stopSelf();
+            stopSelf(startId);   // a newer "on" request keeps the service alive
             return START_NOT_STICKY;
         }
         Settings s = Settings.load(this);
@@ -38,7 +42,7 @@ public class BlockVpnService extends VpnService {
         }
         if (s.activeUntil <= System.currentTimeMillis()) {   // bedtime already over
             close();
-            stopSelf();
+            stopSelf(startId);
             return START_NOT_STICKY;
         }
         open();
@@ -57,9 +61,12 @@ public class BlockVpnService extends VpnService {
                     .setBlocking(true);
             try { b.addDisallowedApplication(getPackageName()); } catch (Exception ignored) { }
             tun = b.establish();
+            lastError = tun == null ? "Android gaf geen toestemming voor de VPN" : null;
         } catch (Exception e) {
             tun = null;
+            lastError = e.getClass().getSimpleName() + ": " + e.getMessage();
         }
+        running = tun != null;
         if (tun == null) return;
         final ParcelFileDescriptor fd = tun;
         drain = new Thread(() -> {
@@ -80,6 +87,7 @@ public class BlockVpnService extends VpnService {
             try { tun.close(); } catch (Exception ignored) { }
         }
         tun = null;
+        running = false;
         stopForeground(STOP_FOREGROUND_REMOVE);
     }
 

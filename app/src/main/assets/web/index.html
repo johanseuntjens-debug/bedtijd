@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bedtijd</title>
+<style>
+/* Layout: one calm night-blue column — status first, then the week, then the choices and permissions */
+:root{
+  --night:#141a2e; --panel:#1d2540; --panel2:#262f50; --line:#334070; --ink:#eef1fb; --muted:#9ea8c8;
+  --moon:#f6d58e; --amber:#e8a33d; --good:#7bd88f; --warn:#ff9f7a;
+  --font:system-ui,-apple-system,"Roboto","Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--night);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:560px;margin:0 auto;display:grid;gap:18px;
+  padding:calc(env(safe-area-inset-top,0px) + 18px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 32px) max(16px,env(safe-area-inset-left,0px))}
+header{display:flex;align-items:center;gap:12px}
+.brand{width:52px;height:52px;border-radius:50%;background:#fff;padding:3px;flex:none;box-shadow:0 0 0 3px rgba(246,213,142,.25)}
+.brand img{width:100%;height:100%;display:block}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.3px}
+h2{margin:0;font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+section{display:grid;gap:10px}
+button{font:600 16px var(--font);color:inherit;border:none;border-radius:14px;min-height:48px;padding:0 16px;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--moon);outline-offset:2px}
+
+/* status */
+.status{background:linear-gradient(160deg,#27315a,#1b2240);border:1px solid var(--line);border-radius:22px;padding:18px;display:grid;gap:12px}
+.status.on{background:linear-gradient(160deg,#3a2f57,#1f2346);border-color:#5a4c86}
+.status .big{font-size:28px;font-weight:800;line-height:1.15}
+.status .big span{color:var(--moon)}
+.status .small{color:var(--muted)}
+.moonrow{display:flex;gap:14px;align-items:center}
+.moonrow svg{width:46px;height:46px;flex:none}
+.primary{background:var(--moon);color:#1b1f33}
+.secondary{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+
+/* week */
+.days{display:grid;gap:8px}
+.day{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px 10px 8px 12px}
+.day.off{opacity:.55}
+.day b{font-size:16px}
+.day .bed{color:var(--muted);font-size:13px;line-height:1.25}
+.day .bed strong{color:var(--ink);font-weight:600}
+.time{display:flex;align-items:center;gap:10px}
+input[type=time]{font:700 20px var(--font);color:var(--ink);background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:6px 10px;min-height:44px;font-variant-numeric:tabular-nums}
+.day.off input[type=time]{pointer-events:none}
+
+/* switch */
+.sw{position:relative;width:52px;height:32px;flex:none}
+.sw input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer}
+.sw i{position:absolute;inset:0;border-radius:999px;background:#3a4570;transition:background .2s}
+.sw i::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:#cfd6ef;transition:transform .2s}
+.sw input:checked + i{background:var(--amber)}
+.sw input:checked + i::after{transform:translateX(20px);background:#fff}
+
+/* sleep duration */
+.dur{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 12px}
+.dur .val{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+.dur .step{display:flex;gap:8px}
+.dur .step button{width:48px;padding:0;font-size:22px;background:var(--panel2);border:1px solid var(--line)}
+
+/* option rows */
+.opts{display:grid;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.opt{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+.opt:first-child{border-top:none}
+.opt .t{flex:1;min-width:0}
+.opt .t b{display:block;font-weight:600}
+.opt .t span{display:block;color:var(--muted);font-size:13px}
+.opt.sub{padding-left:28px}
+.opt.dis{opacity:.45}
+.opt .mini{min-height:40px;padding:0 12px;font-size:14px;background:var(--panel2);border:1px solid var(--line)}
+
+/* permissions */
+.perm{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+.perm:first-child{border-top:none}
+.perm .dot{width:12px;height:12px;border-radius:50%;flex:none;background:var(--warn)}
+.perm.ok .dot{background:var(--good)}
+.perm .t{flex:1;min-width:0}
+.perm .t b{display:block;font-weight:600}
+.perm .t span{display:block;color:var(--muted);font-size:13px}
+.perm button{min-height:40px;font-size:14px;padding:0 12px;background:var(--amber);color:#1b1f33}
+.perm.ok button{display:none}
+.allok{color:var(--good);font-weight:600}
+footer{color:var(--muted);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><img src="logo.png" alt="JS"></div>
+    <h1>Bedtijd</h1>
+  </header>
+
+  <div class="status" id="status">
+    <div class="moonrow">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 6a18 18 0 1 0 12 30A16 16 0 0 1 30 6z" fill="#f6d58e"/><circle cx="38" cy="10" r="1.6" fill="#f6d58e"/><circle cx="43" cy="18" r="1.1" fill="#f6d58e"/></svg>
+      <div><div class="big" id="sBig">–</div><div class="small" id="sSmall"></div></div>
+    </div>
+    <button id="btnNow" class="primary">Bedtijd nu starten</button>
+  </div>
+
+  <section>
+    <h2>Wekker per dag</h2>
+    <div class="days" id="days"></div>
+  </section>
+
+  <section>
+    <h2>Hoe lang wil je slapen?</h2>
+    <div class="dur">
+      <div><div class="val" id="durVal">8 u 00</div><div class="small" style="color:var(--muted);font-size:13px">Je bedtijd begint zo lang vóór je wekker</div></div>
+      <div class="step"><button id="durMin" aria-label="Een kwartier korter">−</button><button id="durPlus" aria-label="Een kwartier langer">+</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tijdens bedtijd</h2>
+    <div class="opts">
+      <label class="opt"><div class="t"><b>Internet uit</b><span>Wifi en mobiel internet gepauzeerd</span></div><span class="sw"><input type="checkbox" id="blockNet"><i></i></span></label>
+      <label class="opt"><div class="t"><b>Oproepen stil</b><span>Niet storen staat aan, de wekker gaat wel af</span></div><span class="sw"><input type="checkbox" id="blockCalls"><i></i></span></label>
+      <label class="opt sub" id="rowFav"><div class="t"><b>Favorieten mogen bellen</b><span>Contacten met een sterretje komen door</span></div><span class="sw"><input type="checkbox" id="allowFavorites"><i></i></span></label>
+      <label class="opt sub" id="rowRep"><div class="t"><b>Herhaald bellen komt door</b><span>Wie binnen 15 minuten opnieuw belt, voor noodgevallen</span></div><span class="sw"><input type="checkbox" id="allowRepeat"><i></i></span></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Wekker</h2>
+    <div class="opts">
+      <label class="opt"><div class="t"><b>Wekker laten afgaan</b><span>Op de tijden hierboven</span></div><span class="sw"><input type="checkbox" id="alarmOn"><i></i></span></label>
+      <div class="opt"><div class="t"><b>Geluid</b><span id="soundName">Standaard wekkergeluid</span></div><button class="mini" id="btnSound">Kies</button><button class="mini" id="btnTest">Test</button></div>
+      <div class="opt"><div class="t"><b>Sluimeren</b><span id="snoozeTxt">9 minuten</span></div><button class="mini" id="snMin" aria-label="Korter">−</button><button class="mini" id="snPlus" aria-label="Langer">+</button></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Toestemmingen</h2>
+    <div class="opts" id="perms"></div>
+  </section>
+
+  <footer>Alles blijft op je telefoon. Er wordt niets verstuurd of bijgehouden.</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var N = window.Native || null;
+  var $ = function (id) { return document.getElementById(id); };
+  var DAYS = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
+  var S = null;
+
+  function demo() {   // preview outside the app
+    return { days: [420, 420, 420, 420, 420, 510, 510].map(function (w, i) { return { on: i < 5, wake: w }; }),
+      sleepMin: 480, blockNet: true, blockCalls: true, allowFavorites: true, allowRepeat: true, alarmOn: true, snoozeMin: 9,
+      perms: { dnd: false, vpn: false, exact: true, notif: true, fsi: false }, active: false,
+      nextStart: 'vanavond 23:00', nextWake: 'morgen 07:00', soundName: 'Standaard wekkergeluid' };
+  }
+  function load() { try { S = N ? JSON.parse(N.state()) : (S || demo()); } catch (e) { S = demo(); } }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function hm(min) { min = ((min % 1440) + 1440) % 1440; return pad(Math.floor(min / 60)) + ':' + pad(min % 60); }
+  function dur(min) { return Math.floor(min / 60) + ' u ' + pad(min % 60); }
+
+  function save() {
+    var o = { days: S.days, sleepMin: S.sleepMin, blockNet: S.blockNet, blockCalls: S.blockCalls,
+      allowFavorites: S.allowFavorites, allowRepeat: S.allowRepeat, alarmOn: S.alarmOn, snoozeMin: S.snoozeMin };
+    if (N) { N.save(JSON.stringify(o)); load(); }
+    render();
+  }
+
+  function renderStatus() {
+    var st = $('status');
+    st.classList.toggle('on', !!S.active);
+    if (S.active) {
+      $('sBig').innerHTML = 'Bedtijd tot <span>' + S.until + '</span>';
+      var what = [S.blockNet ? 'internet uit' : '', S.blockCalls ? 'oproepen stil' : ''].filter(Boolean).join(' en ');
+      $('sSmall').textContent = what ? 'Nu staat ' + what + '.' : 'Welterusten.';
+      $('btnNow').textContent = 'Bedtijd stoppen';
+      $('btnNow').className = 'secondary';
+    } else {
+      $('sBig').innerHTML = S.nextStart ? 'Bedtijd <span>' + S.nextStart + '</span>' : 'Geen bedtijd gepland';
+      $('sSmall').textContent = S.nextWake ? 'Wekker ' + S.nextWake : 'Zet bij een dag de wekker aan.';
+      $('btnNow').textContent = 'Bedtijd nu starten';
+      $('btnNow').className = 'primary';
+    }
+  }
+
+  function renderDays() {
+    $('days').innerHTML = S.days.map(function (d, i) {
+      return '<div class="day' + (d.on ? '' : ' off') + '">' +
+        '<span class="sw"><input type="checkbox" data-on="' + i + '"' + (d.on ? ' checked' : '') + ' aria-label="Wekker op ' + DAYS[i] + '"><i></i></span>' +
+        '<div><b>' + DAYS[i] + '</b><div class="bed">' + (d.on ? 'Naar bed <strong>' + hm(d.wake - S.sleepMin) + '</strong>' : 'Geen wekker') + '</div></div>' +
+        '<div class="time"><input type="time" data-wake="' + i + '" value="' + hm(d.wake) + '" aria-label="Wektijd ' + DAYS[i] + '"></div></div>';
+    }).join('');
+  }
+
+  var PERMS = [
+    ['dnd', 'Niet storen', 'Nodig om oproepen stil te zetten'],
+    ['vpn', 'Internet pauzeren', 'Eenmalig toestaan, daarna gaat het vanzelf'],
+    ['exact', 'Wekkers op tijd', 'Zodat bedtijd en wekker precies op tijd gaan'],
+    ['notif', 'Meldingen', 'Om te laten zien dat bedtijd aan staat'],
+    ['fsi', 'Wekker op volledig scherm', 'Zodat de wekker ook op het vergrendelscherm verschijnt']
+  ];
+  function renderPerms() {
+    var missing = PERMS.filter(function (p) { return !S.perms || !S.perms[p[0]]; });
+    $('perms').innerHTML = (missing.length ? '' : '<div class="perm ok"><span class="dot"></span><div class="t"><span class="allok">Alles staat goed.</span></div></div>') +
+      PERMS.filter(function (p) { return missing.length; }).map(function (p) {
+        var ok = S.perms && S.perms[p[0]];
+        return '<div class="perm' + (ok ? ' ok' : '') + '"><span class="dot"></span><div class="t"><b>' + p[1] + '</b><span>' + (ok ? 'In orde' : p[2]) + '</span></div>' +
+          '<button data-grant="' + p[0] + '">Toestaan</button></div>';
+      }).join('');
+  }
+
+  function render() {
+    renderStatus();
+    renderDays();
+    $('durVal').textContent = dur(S.sleepMin);
+    ['blockNet', 'blockCalls', 'allowFavorites', 'allowRepeat', 'alarmOn'].forEach(function (k) { $(k).checked = !!S[k]; });
+    $('rowFav').classList.toggle('dis', !S.blockCalls);
+    $('rowRep').classList.toggle('dis', !S.blockCalls);
+    $('soundName').textContent = S.soundName || 'Standaard wekkergeluid';
+    $('snoozeTxt').textContent = S.snoozeMin + ' minuten';
+    renderPerms();
+  }
+
+  $('days').addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.dataset.on != null) S.days[+t.dataset.on].on = t.checked;
+    if (t.dataset.wake != null && t.value) {
+      var p = t.value.split(':');
+      S.days[+t.dataset.wake].wake = (+p[0]) * 60 + (+p[1]);
+    }
+    save();
+  });
+  ['blockNet', 'blockCalls', 'allowFavorites', 'allowRepeat', 'alarmOn'].forEach(function (k) {
+    $(k).addEventListener('change', function () { S[k] = this.checked; save(); });
+  });
+  $('durMin').onclick = function () { S.sleepMin = Math.max(240, S.sleepMin - 15); save(); };
+  $('durPlus').onclick = function () { S.sleepMin = Math.min(720, S.sleepMin + 15); save(); };
+  $('snMin').onclick = function () { S.snoozeMin = Math.max(1, S.snoozeMin - 1); save(); };
+  $('snPlus').onclick = function () { S.snoozeMin = Math.min(30, S.snoozeMin + 1); save(); };
+  $('btnSound').onclick = function () { if (N) N.pickSound(); };
+  $('btnTest').onclick = function () { if (N) N.testAlarm(); };
+  $('btnNow').onclick = function () {
+    if (!N) { S.active = !S.active; S.until = '07:00'; render(); return; }
+    if (S.active) N.stopNow(); else N.startNow();
+    load(); render();
+  };
+  $('perms').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-grant]');
+    if (b && N) N.grant(b.dataset.grant);
+  });
+
+  window.App = { refresh: function () { load(); render(); } };
+  load(); render();
+  setInterval(function () { if (N) { load(); renderStatus(); } }, 30000);
+})();
+</script>
+</body>
+</html>

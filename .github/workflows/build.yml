@@ -1,0 +1,55 @@
+name: Bouw APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: APK bouwen
+        run: |
+          set -o pipefail
+          gradle --no-daemon assembleRelease 2>&1 | tee build.log
+
+      - name: Foutmelding tonen
+        if: failure()
+        run: |
+          grep -E "error:|e: |What went wrong|FAILURE|Could not|Duplicate class|> [A-Z]" build.log | grep -v "^> Task" | head -25 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
+
+      - name: APK klaarzetten
+        run: cp app/build/outputs/apk/release/app-release.apk Bedtijd-1.${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bedtijd-1.${{ github.run_number }}
+          path: Bedtijd-1.${{ github.run_number }}.apk
+
+      - name: Release maken
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.${{ github.run_number }}
+          name: Bedtijd 1.${{ github.run_number }}
+          make_latest: true
+          body: |
+            Download de APK hieronder op je telefoon en tik erop om te installeren.
+          files: Bedtijd-1.${{ github.run_number }}.apk

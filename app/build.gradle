@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'nl.js.bedtijd'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'nl.js.bedtijd'
+        minSdk 26
+        targetSdk 34
+        versionCode = Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+        versionName = '1.' + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+    }
+
+    signingConfigs {
+        vast {
+            storeFile file('bedtijd.keystore')
+            storePassword 'bedtijd'
+            keyAlias 'bedtijd'
+            keyPassword 'bedtijd'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.vast
+        }
+        debug {
+            signingConfig signingConfigs.vast
+        }
+    }
+
+    lint {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core:1.13.1'
+    implementation 'androidx.webkit:webkit:1.11.0'
+}

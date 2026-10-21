@@ -31,6 +31,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--moon);outline-o
 .status .big{font-size:28px;font-weight:800;line-height:1.15}
 .status .big span{color:var(--moon)}
 .status .small{color:var(--muted)}
+.status .warn{display:block;margin-top:6px;color:#ffc9a8;font-weight:600}
 .moonrow{display:flex;gap:14px;align-items:center}
 .moonrow svg{width:46px;height:46px;flex:none}
 .primary{background:var(--moon);color:#1b1f33}
@@ -154,7 +155,7 @@ footer{color:var(--muted);font-size:13px;text-align:center}
   function demo() {   // preview outside the app
     return { days: [420, 420, 420, 420, 420, 510, 510].map(function (w, i) { return { on: i < 5, wake: w }; }),
       sleepMin: 480, askFirst: true, blockNet: true, blockCalls: true, blockMessages: true, allowFavorites: true, allowRepeat: true, alarmOn: true, snoozeMin: 9,
-      perms: { dnd: false, vpn: false, exact: true, notif: true, fsi: false }, active: false,
+      perms: { dnd: false, vpn: false, exact: true, notif: true, fsi: false }, netOk: false, dndOk: false, active: false,
       nextStart: 'vanavond 23:00', nextWake: 'morgen 07:00', soundName: 'Standaard wekkergeluid' };
   }
   function load() { try { S = N ? JSON.parse(N.state()) : (S || demo()); } catch (e) { S = demo(); } }
@@ -174,8 +175,12 @@ footer{color:var(--muted);font-size:13px;text-align:center}
     st.classList.toggle('on', !!S.active);
     if (S.active) {
       $('sBig').innerHTML = 'Bedtijd tot <span>' + S.until + '</span>';
-      var what = [S.blockNet ? 'internet uit' : '', S.blockCalls ? 'oproepen stil' : '', S.blockMessages ? 'berichten stil' : ''].filter(Boolean).join(', ');
-      $('sSmall').textContent = what ? 'Nu staat ' + what + '.' : 'Welterusten.';
+      var off = [], still = [];
+      if (S.blockNet) (S.netOk ? off : still).push('internet');
+      if (S.blockCalls) (S.dndOk ? off : still).push('oproepen');
+      if (S.blockMessages) (S.dndOk ? off : still).push('berichten');
+      $('sSmall').innerHTML = (off.length ? 'Uit: ' + off.join(', ') + '.' : 'Welterusten.') +
+        (still.length ? '<span class="warn">Nog aan: ' + still.join(', ') + '. Geef hieronder bij Toestemmingen toegang, dan gaat het meteen uit.</span>' : '');
       $('btnNow').textContent = 'Bedtijd stoppen';
       $('btnNow').className = 'secondary';
     } else if (S.due) {

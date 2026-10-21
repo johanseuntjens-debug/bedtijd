@@ -59,6 +59,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        // bedtime running: apply it again, so permissions given in the meantime take effect now
+        nl.js.bedtijd.Settings st = nl.js.bedtijd.Settings.load(this);
+        if (st.activeUntil > System.currentTimeMillis()) Planner.begin(this, st.activeUntil);
         refresh();
     }
 
@@ -112,6 +115,9 @@ public class MainActivity extends Activity {
                         .put("notif", Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
                         .put("fsi", Build.VERSION.SDK_INT < 34 || nm.canUseFullScreenIntent());
                 o.put("perms", perms);
+                // what is really switched off right now (needs the permissions)
+                o.put("netOk", perms.getBoolean("vpn"));
+                o.put("dndOk", perms.getBoolean("dnd"));
                 boolean active = s.activeUntil > now;
                 o.put("active", active);
                 Planner.Window cur = Planner.current(s, now);
